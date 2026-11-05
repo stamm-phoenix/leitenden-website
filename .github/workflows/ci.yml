@@ -170,7 +170,7 @@ jobs:
 
       - name: Comment preview URL
         if: steps.preview.outputs.url != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           URL: ${{ steps.preview.outputs.url }}
           SHA: ${{ github.event.pull_request.head.sha }}
