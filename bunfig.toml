@@ -1,0 +1,3 @@
+[test]
+# Only the tests of this app; website-astro tests its own code
+root = "./test"

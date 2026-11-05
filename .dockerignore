@@ -1,0 +1,7 @@
+node_modules
+build
+.svelte-kit
+.git
+**/node_modules
+vendor/website-astro/web/test-results
+vendor/website-astro/web/playwright-report

@@ -1,0 +1,4 @@
+[submodule "vendor/website-astro"]
+	path = vendor/website-astro
+	url = https://github.com/stamm-phoenix/website-astro.git
+	branch = main

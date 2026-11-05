@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # The submodule brings the shared code; packages it uses follow its versions
+  # (test/dependencies.test.ts), so they are not updated here on their own.
+  - package-ecosystem: "gitsubmodule"
+    directory: "/"
+    schedule:
+      interval: weekly
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: weekly

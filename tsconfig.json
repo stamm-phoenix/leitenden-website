@@ -1,0 +1,15 @@
+{
+  "extends": "$app/tsconfig",
+  "compilerOptions": {
+    "strict": true,
+    "types": ["node", "bun", "$app/types"],
+    // Same targets as the subpath imports in package.json; TypeScript only adds file
+    // extensions for paths
+    "paths": {
+      "#lib/*": ["./src/lib/*"],
+      "#legacy/*": ["./vendor/website-astro/*"]
+    }
+  },
+  "include": ["src", "test", "vite", "*"],
+  "exclude": ["src/service-worker"]
+}

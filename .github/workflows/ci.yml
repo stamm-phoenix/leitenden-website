@@ -1,0 +1,243 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+
+# PR runs are grouped per PR number: the "closed" event of a merged PR runs with the base branch
+# as github.ref and would otherwise cancel the deployment of main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Only pushes to main and PRs from this repository get an OIDC token for Azure; PRs from forks
+  # are tested and built, but not deployed.
+  DEPLOY: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+  BUN_VERSION: 1.4.2
+
+jobs:
+  test:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun test
+      - run: bun run build
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC login to Azure
+    outputs:
+      image: ${{ steps.tag.outputs.image }}
+      suffix: ${{ steps.tag.outputs.suffix }}
+      pushed: ${{ steps.push.outputs.pushed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: docker/setup-buildx-action@v4
+
+      # Revision suffixes: lowercase letters, digits and hyphens. The run attempt keeps reruns of
+      # the same commit apart, because a revision name can only be used once.
+      - name: Image tag and revision suffix
+        id: tag
+        env:
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          short="${SHA:0:7}"
+          if [ -n "$PR" ]; then
+            echo "image=${{ vars.ACR_NAME }}.azurecr.io/${{ vars.CONTAINER_APP }}:pr$PR-$SHA" >> "$GITHUB_OUTPUT"
+            echo "suffix=pr$PR-$short-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          else
+            echo "image=${{ vars.ACR_NAME }}.azurecr.io/${{ vars.CONTAINER_APP }}:$SHA" >> "$GITHUB_OUTPUT"
+            echo "suffix=main-$short-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Azure login
+        if: env.DEPLOY == 'true'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR login
+        id: push
+        if: env.DEPLOY == 'true'
+        run: |
+          az acr login --name ${{ vars.ACR_NAME }}
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: ${{ steps.push.outputs.pushed == 'true' }}
+          tags: ${{ steps.push.outputs.pushed == 'true' && steps.tag.outputs.image || 'leitenden-website:ci' }}
+          build-args: BUILD_COMMIT_SHA=${{ github.event.pull_request.head.sha || github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Each preview has a database and blob container of its own on the preview server, with
+  # invented test data (scripts/preview-db.ts)
+  preview-db:
+    needs: test
+    if: github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - run: bun scripts/preview-db.ts create "${{ github.event.pull_request.number }}"
+
+  deploy:
+    needs: [image, preview-db]
+    # preview-db is skipped on main
+    if: always() && needs.image.outputs.pushed == 'true' && needs.preview-db.result != 'failure'
+    runs-on: ubuntu-latest
+    # Every change to the Container App waits for the previous one; Azure rejects parallel updates.
+    concurrency:
+      group: container-app
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write # preview comment
+    env:
+      RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
+      CONTAINER_APP: ${{ vars.CONTAINER_APP }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Azure login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Azure Container Apps
+        if: github.event_name == 'push'
+        run: .github/scripts/container-app.sh main "${{ needs.image.outputs.image }}" "${{ needs.image.outputs.suffix }}"
+
+      - name: Deploy preview
+        id: preview
+        if: github.event_name == 'pull_request'
+        run: .github/scripts/container-app.sh preview "${{ github.event.pull_request.number }}" "${{ needs.image.outputs.image }}" "${{ needs.image.outputs.suffix }}"
+
+      # The login of the preview needs its callback in the app registration website-astro
+      - name: Azure login (Entra)
+        if: github.event_name == 'pull_request'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.ENTRA_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Register preview login callback
+        if: github.event_name == 'pull_request'
+        env:
+          ENTRA_WEBSITE_APP_OBJECT_ID: ${{ vars.ENTRA_WEBSITE_APP_OBJECT_ID }}
+          PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}
+        run: .github/scripts/entra-preview-redirect.sh add "${{ github.event.pull_request.number }}"
+
+      - name: Comment preview URL
+        if: steps.preview.outputs.url != ''
+        uses: actions/github-script@v8
+        env:
+          URL: ${{ steps.preview.outputs.url }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            const marker = "<!-- leitenden-website-preview -->";
+            const { URL: url, SHA: sha } = process.env;
+            const body = [
+              marker,
+              `**Preview:** ${url}`,
+              "",
+              `Stand: ${sha.slice(0, 7)} · eigene Datenbank mit Testdaten, wird beim Schließen des Pull Requests entfernt.`,
+            ].join("\n");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body?.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+  remove-preview:
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    concurrency:
+      group: container-app
+      cancel-in-progress: false
+      queue: max
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
+      CONTAINER_APP: ${{ vars.CONTAINER_APP }}
+      ACR_NAME: ${{ vars.ACR_NAME }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Remove preview revision
+        run: .github/scripts/container-app.sh remove-preview "$PR"
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.ENTRA_DEPLOY_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Remove preview login callback
+        env:
+          ENTRA_WEBSITE_APP_OBJECT_ID: ${{ vars.ENTRA_WEBSITE_APP_OBJECT_ID }}
+          PREVIEW_DOMAIN: ${{ vars.PREVIEW_DOMAIN }}
+        run: .github/scripts/entra-preview-redirect.sh remove "$PR"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ vars.SQL_PREVIEW_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: Drop preview database
+        run: bun scripts/preview-db.ts drop "$PR"

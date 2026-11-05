@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de" class="bg-[var(--color-neutral-50)]">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#f8f5ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101b26" media="(prefers-color-scheme: dark)" />
+    <script>
+      // Before the first paint, like BaseLayout.astro and StaffLayout.astro of website-astro:
+      // the chosen theme and the folded sidebar (keys of lib/theme.ts and lib/staffSidebar.ts)
+      (() => {
+        let choice;
+        try {
+          choice = localStorage.getItem('phoenix-theme');
+        } catch {}
+        if (choice === 'light' || choice === 'dark') document.documentElement.dataset.theme = choice;
+        try {
+          const sidebar = localStorage.getItem('phoenix:staff-sidebar:v1');
+          if (sidebar) document.documentElement.dataset.staffSidebar = sidebar;
+        } catch {}
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    %sveltekit.head%
+  </head>
+  <body class="relative overflow-x-hidden" data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>
