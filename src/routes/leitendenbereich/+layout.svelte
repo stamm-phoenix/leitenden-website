@@ -23,13 +23,14 @@
   import StaffFooter from '#lib/components/StaffFooter.svelte';
   import StaffHeader from '#lib/components/StaffHeader.svelte';
   import OfflineNotice from '#lib/components/OfflineNotice.svelte';
-  import { MOVED_PAGES, staffPath } from '#lib/staffPages';
+  import { MOVED_PAGES, staffRegistryPath } from '#lib/staffPages';
   import { PAGE_HEADER_CONTENT } from '#lib/staffPageHeaders';
 
   let { children }: { children: Snippet } = $props();
 
   const sections = STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0);
-  const path = $derived(staffPath(page.url.pathname));
+  // A detail page with the ID in its path (abrechnung/<id>) has the entry of its registered page
+  const path = $derived(staffRegistryPath(page.url.pathname));
   // Pages not moved yet redirect to the website before they render (leitendenbereich/[...rest])
   const options = $derived(MOVED_PAGES[path] ?? { header: 'none' as const });
   const current = $derived(MOVED_PAGES[path] ? staffPage(path) : undefined);
@@ -91,7 +92,9 @@
     <!-- „Zum Inhalt springen“ leads here, past the sidebar -->
     <div id="staff-content" tabindex="-1" class="min-w-0 flex-1">
       {#if !bare}<ClientOnly><GeretteteEingaben /></ClientOnly>{/if}
-      {#if !bare && options.offlineNotice !== false}<OfflineNotice />{/if}
+      {#if !bare && options.offlineNotice !== false}<OfflineNotice
+          text={options.offlineText}
+        />{/if}
       {#if !bare && back}
         <nav aria-label="Zurück" class="-mt-4 mb-2 md:-mt-6">
           <a

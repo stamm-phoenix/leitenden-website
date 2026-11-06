@@ -16,6 +16,8 @@ export interface StaffPageOptions {
   bare?: boolean;
   /** Off for modules that say themselves what works without a connection. */
   offlineNotice?: boolean;
+  /** What the notice without a connection says instead, for modules that keep working offline. */
+  offlineText?: string;
 }
 
 export const MOVED_PAGES: Record<string, StaffPageOptions> = {
@@ -49,9 +51,44 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/essensplanungen': { header: 'page' },
   '/leitendenbereich/essensplanung-steuerung': { header: 'page' },
   '/leitendenbereich/essensplanung-zutaten': { header: 'page' },
+  '/leitendenbereich/abrechnung': { header: 'page' },
+  '/leitendenbereich/abrechnung/detail': {
+    header: 'none',
+    offlineText:
+      'Deine Eingaben bleiben auf dieser offenen Seite stehen. Neue Daten laden erst wieder, wenn du online bist.',
+  },
 };
+
+export interface DetailPage {
+  /** The list page; the ID is the one path segment below it. */
+  parent: string;
+  /** The path of the detail page in the registry of website-astro and in `MOVED_PAGES`. */
+  page: string;
+}
+
+/**
+ * Detail pages whose URL carries the ID in the path, e.g. `/leitendenbereich/abrechnung/evt_…`:
+ * on the website a rewrite in staticwebapp.config.json served the page registered as `page`
+ * for every path below `parent`; here they are routes with a parameter (`[id]`).
+ */
+export const DETAIL_PAGES: DetailPage[] = [
+  { parent: '/leitendenbereich/abrechnung', page: '/leitendenbereich/abrechnung/detail' },
+];
 
 /** The path without a trailing slash, as the registry of website-astro writes it. */
 export function staffPath(pathname: string): string {
   return pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+}
+
+/**
+ * The path of the registry (`MOVED_PAGES`, `staffPage` of website-astro) for `pathname`: the
+ * registered detail page for a path with an ID, otherwise the path itself.
+ */
+export function staffRegistryPath(pathname: string): string {
+  const path = staffPath(pathname);
+  const detail = DETAIL_PAGES.find(({ parent }) => {
+    const rest = path.startsWith(`${parent}/`) ? path.slice(parent.length + 1) : '';
+    return rest !== '' && !rest.includes('/');
+  });
+  return detail?.page ?? path;
 }
