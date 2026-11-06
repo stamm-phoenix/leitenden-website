@@ -5,7 +5,7 @@
   import ClientOnly from '#lib/components/ClientOnly.svelte';
 </script>
 
-<!-- The page reads the poll from ?id= once when it opens; another one opens it anew -->
-{#key page.url.searchParams.get('id')}
+<!-- The page reads ?id= once when it opens; another query opens it anew, as on the website -->
+{#key page.url.search}
   <ClientOnly><AbstimmungDetailSeite /></ClientOnly>
 {/key}

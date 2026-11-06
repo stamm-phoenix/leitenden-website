@@ -5,7 +5,7 @@
   import ClientOnly from '#lib/components/ClientOnly.svelte';
 </script>
 
-<!-- The editor reads the minutes from ?id= once when it opens; another one opens it anew -->
-{#key page.url.searchParams.get('id')}
+<!-- The editor reads ?id= and ?bearbeiten= once when it opens; another query opens it anew, as on the website -->
+{#key page.url.search}
   <ClientOnly><ProtokollEditor /></ClientOnly>
 {/key}
