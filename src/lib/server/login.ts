@@ -5,7 +5,7 @@
  * (`getClientAssertion`), not with a secret.
  */
 import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
-import type { AuthenticationResult } from '@azure/msal-node';
+import type { AuthenticationResult, AuthorizationCodeRequest } from '@azure/msal-node';
 import { error, redirect } from '@sveltejs/kit';
 import type { Cookies } from '@sveltejs/kit';
 import { z } from 'zod';
@@ -19,6 +19,7 @@ const SCOPES = ['openid', 'profile', 'email'];
 const CALLBACK_PATH = '/.auth/login/aad/callback';
 const LOGIN_PURPOSE = 'login';
 export const DEFAULT_RETURN = '/leitendenbereich';
+export const FAILED_PATH = '/anmeldung-fehlgeschlagen';
 
 const loginStateSchema = z.object({
   state: z.string(),
@@ -26,6 +27,7 @@ const loginStateSchema = z.object({
   verifier: z.string(),
   returnTo: z.string(),
 });
+type LoginState = z.infer<typeof loginStateSchema>;
 
 let client: ConfidentialClientApplication | undefined;
 const crypto = new CryptoProvider();
@@ -104,6 +106,32 @@ function claim(claims: Record<string, unknown>, name: string): string | undefine
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
 
+/**
+ * The request that redeems the code. MSAL checks the nonce of the ID token only against the
+ * nonce passed here, and rejects every token that has one when none is passed (`nonce_mismatch`).
+ */
+export function tokenRequest(
+  code: string,
+  redirectUri: string,
+  pending: LoginState
+): AuthorizationCodeRequest {
+  return {
+    code,
+    scopes: SCOPES,
+    redirectUri,
+    codeVerifier: pending.verifier,
+    nonce: pending.nonce,
+  };
+}
+
+/**
+ * A redirect, not `error()`: SvelteKit drops the cookies of a thrown error, so the login cookie
+ * would stay and a reload would redeem the used code again.
+ */
+function failed(returnTo: string): never {
+  redirect(302, `${FAILED_PATH}?ziel=${encodeURIComponent(returnTo)}`);
+}
+
 export async function finishLogin(url: URL, cookies: Cookies): Promise<never> {
   const pending = loginStateSchema.safeParse(
     unseal(cookies.get(APP_CONFIG.session.loginCookie), env.sessionSecret, LOGIN_PURPOSE)
@@ -111,27 +139,22 @@ export async function finishLogin(url: URL, cookies: Cookies): Promise<never> {
   cookies.delete(APP_CONFIG.session.loginCookie, { path: '/.auth/' });
   // Expired or opened in another browser: start again instead of showing an error
   if (!pending.success) redirect(302, '/.auth/login/aad');
+  const { returnTo } = pending.data;
 
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   if (!code || state !== pending.data.state) {
-    redirect(
-      302,
-      `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(pending.data.returnTo)}`
-    );
+    redirect(302, `/.auth/login/aad?post_login_redirect_uri=${encodeURIComponent(returnTo)}`);
   }
 
   let result: AuthenticationResult;
   try {
-    result = await getClient().acquireTokenByCode({
-      code,
-      scopes: SCOPES,
-      redirectUri: callbackUrl(url),
-      codeVerifier: pending.data.verifier,
-    });
+    result = await getClient().acquireTokenByCode(
+      tokenRequest(code, callbackUrl(url), pending.data)
+    );
   } catch (failure: unknown) {
     console.error('[anmeldung] Code konnte nicht eingelöst werden', failure);
-    error(502, 'Die Anmeldung hat nicht geklappt. Versuch es noch einmal.');
+    failed(returnTo);
   }
   // Only the claims are needed; the in-memory token cache would otherwise grow with every login
   if (result.account) await getClient().getTokenCache().removeAccount(result.account);
@@ -141,12 +164,13 @@ export async function finishLogin(url: URL, cookies: Cookies): Promise<never> {
   const tid = claim(claims, 'tid');
   const login = claim(claims, 'preferred_username') ?? claim(claims, 'email');
   if (claims.nonce !== pending.data.nonce || !oid || !login || tid !== APP_CONFIG.azure.tenantId) {
-    error(403, 'Diese Anmeldung gehört nicht zum Stamm Phoenix.');
+    console.error('[anmeldung] Anmeldung abgelehnt', { oid, tid, hasLogin: Boolean(login) });
+    failed(returnTo);
   }
   writeSession(
     cookies,
     { oid, tid, login, name: claim(claims, 'name'), givenName: claim(claims, 'given_name') },
     secure(url)
   );
-  redirect(302, pending.data.returnTo);
+  redirect(302, returnTo);
 }
