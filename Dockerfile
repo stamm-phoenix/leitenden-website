@@ -32,5 +32,8 @@ COPY --chown=node:node vendor/website-astro/api/assets ./vendor/website-astro/ap
 # (vite.worker.config.ts); it loads pdfjs-dist from node_modules
 COPY --from=build --chown=node:node /app/vendor/website-astro/api/dist/bundle/protokoll-pdf-worker.js ./vendor/website-astro/api/dist/bundle/
 USER node
+# Runs the worker once in this image, with its Node and packages (the build stage has only bun)
+COPY --chown=node:node scripts/check-build.mjs ./scripts/
+RUN node scripts/check-build.mjs
 EXPOSE 3000
 CMD ["node", "build/index.js"]

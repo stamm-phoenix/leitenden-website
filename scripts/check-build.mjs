@@ -1,5 +1,5 @@
-// Last step of `bun run build`: checks that the build has the PDF worker of the website's API
-// (vite.worker.config.ts) and that it reads the text of a PDF, started as
+// Last step of `bun run build` and of the image (Dockerfile): checks that the PDF worker of the
+// website's API (vite.worker.config.ts) is there and reads the text of a PDF, started as
 // `api/lib/protokoll-text.ts` starts it. Paths as in the container: from the app folder.
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -38,10 +38,11 @@ function extract(bytes) {
       transferList: [bytes.buffer],
       resourceLimits: { maxOldGenerationSizeMb: 96, maxYoungGenerationSizeMb: 16, stackSizeMb: 4 },
     });
+    // More time than the API gives it (5 s): a busy build machine must not fail the build
     const timer = setTimeout(() => {
-      fail(new Error('no answer within 5 s'));
+      fail(new Error('no answer within 30 s'));
       void worker.terminate();
-    }, 5000);
+    }, 30_000);
     worker.once('message', (text) => {
       clearTimeout(timer);
       done(text);
