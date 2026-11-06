@@ -23,6 +23,8 @@
   import StaffFooter from '#lib/components/StaffFooter.svelte';
   import StaffHeader from '#lib/components/StaffHeader.svelte';
   import OfflineNotice from '#lib/components/OfflineNotice.svelte';
+  import AppUmzugHinweis from '#lib/components/AppUmzugHinweis.svelte';
+  import { APP_MANIFEST_PATH } from '#lib/appManifest';
   import { MOVED_PAGES, staffRegistryPath } from '#lib/staffPages';
   import { PAGE_HEADER_CONTENT } from '#lib/staffPageHeaders';
 
@@ -64,6 +66,10 @@
 
 <svelte:head>
   <title>{title}</title>
+  <!-- Installable from the home screen, as in StaffLayout.astro (lib/appManifest.ts) -->
+  <link rel="manifest" href={APP_MANIFEST_PATH} />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="Leitende" />
   {#if current}<meta name="description" content={current.description} />{/if}
 </svelte:head>
 
@@ -91,6 +97,7 @@
 
     <!-- „Zum Inhalt springen“ leads here, past the sidebar -->
     <div id="staff-content" tabindex="-1" class="min-w-0 flex-1">
+      <AppUmzugHinweis />
       {#if !bare}<ClientOnly><GeretteteEingaben /></ClientOnly>{/if}
       {#if !bare && options.offlineNotice !== false}<OfflineNotice
           text={options.offlineText}
