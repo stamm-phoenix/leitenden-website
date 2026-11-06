@@ -5,6 +5,6 @@
   import ClientOnly from '#lib/components/ClientOnly.svelte';
 </script>
 
-{#key page.url.searchParams.get('id')}
+{#key page.url.search}
   <ClientOnly><ProtokollPraesentation /></ClientOnly>
 {/key}

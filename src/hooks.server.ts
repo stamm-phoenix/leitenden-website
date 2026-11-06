@@ -12,6 +12,7 @@ import { principalHeader, principalOf } from '#lib/server/principal';
 import { clearSession, readSession } from '#lib/server/session';
 import { env } from '#lib/server/env';
 import { STAFF_ROLE, routeAccess } from '#lib/server/access';
+import { MOVED_PAGES, staffPath } from '#lib/staffPages';
 
 const PRINCIPAL_HEADER = 'x-ms-client-principal';
 
@@ -97,10 +98,27 @@ const handleRequest: Handle = async ({ event, resolve }): Promise<Response> => {
   return resolve(event);
 };
 
+/**
+ * BaseLayout.astro marks the body of a bare page (no background pattern) in its HTML. The
+ * layout keeps the class right on navigations; this sets it before the first paint.
+ */
+function withBareBody(resolve: Parameters<Handle>[0]['resolve']): Parameters<Handle>[0]['resolve'] {
+  return (event, opts) =>
+    resolve(event, {
+      ...opts,
+      transformPageChunk: MOVED_PAGES[staffPath(event.url.pathname)]?.bare
+        ? ({ html }) => html.replace('<body class="', '<body class="is-bare ')
+        : opts?.transformPageChunk,
+    });
+}
+
 export const handle: Handle = async (input) => {
+  const resolve = withBareBody(input.resolve);
   // In the demo mode the mock API of website-astro answers /api and /.auth (vite.config.ts)
   const response =
-    env.mockApi && !env.inAzure ? await input.resolve(input.event) : await handleRequest(input);
+    env.mockApi && !env.inAzure
+      ? await resolve(input.event)
+      : await handleRequest({ event: input.event, resolve });
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
     if (!response.headers.has(name)) response.headers.set(name, value);
   }
