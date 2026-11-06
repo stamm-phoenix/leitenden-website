@@ -24,6 +24,7 @@
   import StaffHeader from '#lib/components/StaffHeader.svelte';
   import OfflineNotice from '#lib/components/OfflineNotice.svelte';
   import { MOVED_PAGES, staffPath } from '#lib/staffPages';
+  import { PAGE_HEADER_CONTENT } from '#lib/staffPageHeaders';
 
   let { children }: { children: Snippet } = $props();
 
@@ -51,6 +52,7 @@
   });
   const module = $derived(current ? staffModuleOf(current)?.href : undefined);
   const bare = $derived(options.bare === true);
+  const HeaderContent = $derived(PAGE_HEADER_CONTENT[path]);
 
   // BaseLayout.astro marks the body of a bare page (no background pattern, global.css)
   $effect(() => {
@@ -119,6 +121,7 @@
             {#if intro && !current?.introOpen}<StaffIntro {heading} {intro} />{/if}
           {/snippet}
           {#if intro && current?.introOpen}<StaffIntro {heading} {intro} open />{/if}
+          {#if HeaderContent}<HeaderContent />{/if}
         </PageHeader>
       {:else if options.header === 'sr-only'}
         <h1 class="sr-only">{heading}</h1>
