@@ -22,33 +22,39 @@ JOBS=(
   "leitenden-timer-leitendenrunde|leitendenrundeReminders|47 * * * *|LEITENDENRUNDE_REMINDERS_ENABLED"
   "leitenden-timer-essensplanung|essensplanungAufbewahrung|23 3 * * *|ESSENSPLANUNG_AUFBEWAHRUNG_ENABLED"
 )
-# Variables of the app the jobs do not get: the login, the proxy header and preview names (the
-# template of the app may be the one of a preview revision)
-SKIPPED_VARS='SESSION_SECRET|PROTOCOL_HEADER|PREVIEW_DATABASE|PREVIEW_CONTAINER'
+# Variables of the app the jobs do not get: the login, the proxy header, preview names (the
+# template of the app may be the one of a preview revision) and switches, which each job sets
+SKIPPED_VARS='SESSION_SECRET|PROTOCOL_HEADER|PREVIEW_DATABASE|PREVIEW_CONTAINER|[A-Z_]+_ENABLED'
 DEPLOY_IDENTITY=leitenden-website-deploy
 
 app_query() {
   az containerapp show -g "$rg" -n "$app" --query "$1" -o tsv
 }
 
+# Fails on other errors (e.g. no access) instead of taking the job for missing
 job_exists() {
-  az containerapp job show -g "$rg" -n "$1" --query name -o tsv >/dev/null 2>&1
+  [ -n "$(az containerapp job list -g "$rg" --query "[?name=='$1'].name" -o tsv)" ]
 }
 
 setup() {
   local image="$1" identity environment registry deploy_principal line job timer cron switch
+  local secret_list secret_vars plain_vars
   local -a secrets vars
   identity="$(app_query "keys(identity.userAssignedIdentities)[0]")"
   environment="$(app_query "properties.environmentId")"
   registry="$(app_query "properties.configuration.registries[0].server")"
   deploy_principal="$(az identity show -g "$rg" -n "$DEPLOY_IDENTITY" --query principalId -o tsv)"
   # Key Vault references of the app (stamm-phoenix-secrets), read with the runtime identity
-  mapfile -t secrets < <(app_query "properties.configuration.secrets[?keyVaultUrl != null].join('', [name, '=keyvaultref:', keyVaultUrl, ',identityref:', identity])")
-  mapfile -t vars < <(
-    app_query "properties.template.containers[0].env[?secretRef != null].join('', [name, '=secretref:', secretRef])"
-    app_query "properties.template.containers[0].env[?secretRef == null].join('', [name, '=', value])"
-  )
-  mapfile -t vars < <(printf '%s\n' "${vars[@]}" | grep -vE "^($SKIPPED_VARS)=" || true)
+  # (assignments, not process substitutions, so that a failing query stops the script)
+  secret_list="$(app_query "properties.configuration.secrets[?keyVaultUrl != null].join('', [name, '=keyvaultref:', keyVaultUrl, ',identityref:', identity])")"
+  secret_vars="$(app_query "properties.template.containers[0].env[?secretRef != null].join('', [name, '=secretref:', secretRef])")"
+  plain_vars="$(app_query "properties.template.containers[0].env[?secretRef == null].join('', [name, '=', value])")"
+  mapfile -t secrets < <(grep . <<< "$secret_list" || true)
+  mapfile -t vars < <(printf '%s\n%s\n' "$secret_vars" "$plain_vars" | grep . | grep -vE "^($SKIPPED_VARS)=" || true)
+  if [ "${#secrets[@]}" -eq 0 ] || [ "${#vars[@]}" -eq 0 ]; then
+    echo "::error::No secrets or variables found on $app"
+    exit 1
+  fi
 
   for line in "${JOBS[@]}"; do
     IFS='|' read -r job timer cron switch <<< "$line"
@@ -78,7 +84,7 @@ setup() {
 }
 
 update_image() {
-  local image="$1" line job current
+  local image="$1" line job current args
   for line in "${JOBS[@]}"; do
     job="${line%%|*}"
     if ! job_exists "$job"; then
@@ -91,11 +97,17 @@ update_image() {
       echo "::error::Job $job runs $current instead of $image"
       exit 1
     fi
+    # Without its command the image would start the web server instead of the timer
+    args="$(az containerapp job show -g "$rg" -n "$job" --query "properties.template.containers[0].args[0]" -o tsv)"
+    if [ "$args" != "build/jobs/timer.js" ]; then
+      echo "::error::Job $job starts $args instead of build/jobs/timer.js"
+      exit 1
+    fi
   done
 }
 
 case "${1:-}" in
-  setup) setup "$2" ;;
-  image) update_image "$2" ;;
+  setup) setup "${2:?image missing}" ;;
+  image) update_image "${2:?image missing}" ;;
   *) echo "usage: $0 setup|image <image>" >&2; exit 2 ;;
 esac

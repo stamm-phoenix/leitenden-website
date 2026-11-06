@@ -119,6 +119,8 @@ describe('toJobCron', () => {
 function scriptSchedules(): Record<string, string> {
   const script = readFileSync(new URL('../.github/scripts/timer-jobs.sh', import.meta.url), 'utf8');
   const entries = [...script.matchAll(/^ {2}"[a-z-]+\|(\w+)\|([^|]+)\|[A-Z_]+"$/gm)];
+  // The JOBS array of the script; a changed layout must fail here, not as an empty comparison
+  expect(entries).toHaveLength(3);
   return Object.fromEntries(entries.map(([, timer, cron]) => [timer, cron]));
 }
 
