@@ -40,6 +40,7 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/anwesenheit': { header: 'page' },
   '/leitendenbereich/mitglieder': { header: 'page' },
   '/leitendenbereich/nami-abgleich': { header: 'page' },
+  '/leitendenbereich/schnupperanfragen': { header: 'page' },
   '/leitendenbereich/wieder-angemeldet': { header: 'page' },
 };
 
