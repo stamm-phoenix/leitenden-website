@@ -25,6 +25,7 @@ describe('PDF worker of the minutes', () => {
     expect(read('Dockerfile')).toContain(
       `COPY --from=build --chown=node:node /app/${BUNDLE}/protokoll-pdf-worker.js ./${BUNDLE}/`
     );
+    expect(read('Dockerfile')).toContain('RUN node scripts/check-build.mjs');
     expect(read('package.json')).toContain(
       'vite build --config vite.worker.config.ts && node scripts/check-build.mjs'
     );
