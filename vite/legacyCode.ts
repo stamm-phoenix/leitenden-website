@@ -6,6 +6,12 @@ const path = (relative: string): string => fileURLToPath(new URL(relative, impor
 const LEGACY_API = path('../vendor/website-astro/api/');
 
 /**
+ * The folder of the website's API bundle: `__dirname` of its code (see `transform`) and the
+ * place of the PDF worker (vite.worker.config.ts).
+ */
+export const LEGACY_API_BUNDLE = `${LEGACY_API}dist/bundle`;
+
+/**
  * Modules of the website-astro API that this app replaces: the API runs here as one Node
  * server instead of Azure Functions, signs in with the Managed Identity instead of the
  * certificate and reads the preview names from its environment instead of a rewritten file.

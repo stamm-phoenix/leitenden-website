@@ -11,7 +11,7 @@ bun run dev:mock                # Dev server with the demo API and login of webs
 bun run dev                     # Dev server against Azure (needs SESSION_SECRET, see „Login“)
 bun run check                   # svelte-check of this app (the submodule is checked by website-astro)
 bun test                        # Unit tests in test/
-bun run build                   # Production build (adapter-node in build/, timer jobs in build/jobs/)
+bun run build                   # Production build (adapter-node in build/, timer jobs in build/jobs/, PDF worker, see „API“)
 ```
 
 ## How this app is built
@@ -49,6 +49,7 @@ scripts/preview-db.ts       # Database and blob container of a PR preview
 - `/api/*` is served by the endpoints of website-astro through `src/lib/server/functions/`: `app.http()` registrations become routes (Functions route templates incl. `{id:int?}` and `{stufe}.ics`), the Fetch request becomes their `HttpRequest`. Do not add endpoints here; add them in website-astro.
 - `hooks.server.ts` removes any `x-ms-client-principal` the browser sends and sets the one of the login. Never trust a principal from the request.
 - Access as in `staticwebapp.config.json`: `/leitendenbereich/*` and `/api/intern/*` need the role `team_leitende` (`src/lib/server/access.ts`). Other `/api/*` answer only GET; the public functions (Nikolaus booking, contact, polls, meal planning for guests, group orders) stay on the website.
+- Uploaded PDF minutes are read in a worker thread that `api/lib/protokoll-text.ts` starts next to the website's API bundle. `vite.worker.config.ts` builds it from the submodule into `vendor/website-astro/api/dist/bundle/` (where `__dirname` of that code points, `vite/legacyCode.ts`), `scripts/check-build.mjs` runs it on a sample PDF at the end of `bun run build`, and the `Dockerfile` copies it into the image.
 - Timers (`api/timers/` of website-astro) run as Container Apps Jobs, one per timer, never in the web server: `app.timer()` records them (`functions/timers.ts`), and each job runs `node build/jobs/timer.js <timer>` from the image of `main` on the timer's schedule (cron in UTC, NCRONTAB without the seconds; `test/timer-jobs.test.ts` compares them). A job execution is one container, so each run happens exactly once however many replicas the app has, and previews never run them. The entry is built by `vite.jobs.config.ts` with the same module replacements as the server. Do not add `runOnStartup` or retries: a run that failed half way must not send its mails twice.
 
 ### Login

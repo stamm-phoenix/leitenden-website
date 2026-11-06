@@ -28,6 +28,9 @@ COPY --from=build --chown=node:node /app/build ./build
 COPY --chown=node:node package.json ./
 # Files the API of website-astro reads at run time (fonts and images of PDFs, templates)
 COPY --chown=node:node vendor/website-astro/api/assets ./vendor/website-astro/api/assets
+# The worker that reads uploaded PDF minutes, next to where the API expects its bundle
+# (vite.worker.config.ts); it loads pdfjs-dist from node_modules
+COPY --from=build --chown=node:node /app/vendor/website-astro/api/dist/bundle/protokoll-pdf-worker.js ./vendor/website-astro/api/dist/bundle/
 USER node
 EXPOSE 3000
 CMD ["node", "build/index.js"]

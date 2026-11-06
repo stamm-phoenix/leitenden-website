@@ -5,3 +5,5 @@ build
 **/node_modules
 vendor/website-astro/web/test-results
 vendor/website-astro/web/playwright-report
+# Built in the image from the source of the submodule (vite.worker.config.ts)
+vendor/website-astro/api/dist
