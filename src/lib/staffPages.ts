@@ -9,6 +9,10 @@ export interface StaffPageOptions {
   header: 'page' | 'sr-only' | 'none';
   /** Less space below the intro, for modules whose content must start high up on a phone. */
   compact?: boolean;
+  /** Only the content, without header, menu and footer, for views shown in a window of their own. */
+  bare?: boolean;
+  /** Off for modules that say themselves what works without a connection. */
+  offlineNotice?: boolean;
 }
 
 export const MOVED_PAGES: Record<string, StaffPageOptions> = {
@@ -17,6 +21,9 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/aufgaben/projekte': { header: 'page', compact: true },
   '/leitendenbereich/aufgaben/vorlagen': { header: 'page', compact: true },
   '/leitendenbereich/aufgaben/vorschlaege': { header: 'page', compact: true },
+  '/leitendenbereich/protokolle': { header: 'page' },
+  '/leitendenbereich/protokolle/protokoll': { header: 'sr-only', offlineNotice: false },
+  '/leitendenbereich/protokolle/praesentation': { header: 'sr-only', bare: true },
   '/leitendenbereich/wieder-angemeldet': { header: 'page' },
 };
 

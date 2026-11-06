@@ -50,6 +50,13 @@
     ancestors: breadcrumbs.map((ancestor) => ancestor.href),
   });
   const module = $derived(current ? staffModuleOf(current)?.href : undefined);
+  const bare = $derived(options.bare === true);
+
+  // BaseLayout.astro marks the body of a bare page (no background pattern, global.css)
+  $effect(() => {
+    document.body.classList.toggle('is-bare', bare);
+    return () => document.body.classList.remove('is-bare');
+  });
 </script>
 
 <svelte:head>
@@ -64,24 +71,26 @@
   Zum Inhalt springen
 </a>
 
-<header class="ui-topbar sticky top-0 z-50 border-b border-[var(--color-neutral-200)] bg-surface">
-  <StaffHeader />
-  <div class="ui-topbar-line h-1 w-full bg-danger"></div>
-</header>
+{#if !bare}
+  <header class="ui-topbar sticky top-0 z-50 border-b border-[var(--color-neutral-200)] bg-surface">
+    <StaffHeader />
+    <div class="ui-topbar-line h-1 w-full bg-danger"></div>
+  </header>
+{/if}
 
 <main
   id="main"
   tabindex="-1"
-  class="relative z-20 container container-wide w-full flex-1 py-8 md:py-12"
+  class={['relative z-20 w-full flex-1', !bare && 'container container-wide py-8 md:py-12']}
 >
-  <div class="xl:flex xl:items-start xl:gap-8">
-    <StaffSidebar {...navProps} />
+  <div class={[!bare && 'xl:flex xl:items-start xl:gap-8']}>
+    {#if !bare}<StaffSidebar {...navProps} />{/if}
 
     <!-- „Zum Inhalt springen“ leads here, past the sidebar -->
     <div id="staff-content" tabindex="-1" class="min-w-0 flex-1">
-      <ClientOnly><GeretteteEingaben /></ClientOnly>
-      <OfflineNotice />
-      {#if back}
+      {#if !bare}<ClientOnly><GeretteteEingaben /></ClientOnly>{/if}
+      {#if !bare && options.offlineNotice !== false}<OfflineNotice />{/if}
+      {#if !bare && back}
         <nav aria-label="Zurück" class="-mt-4 mb-2 md:-mt-6">
           <a
             href={back.href}
@@ -119,7 +128,8 @@
         class={[
           'staff-page',
           options.header === 'page' && !options.compact && 'mt-4',
-          ((options.header === 'page' && options.compact) || options.header === 'sr-only') &&
+          ((options.header === 'page' && options.compact) ||
+            (options.header === 'sr-only' && !bare)) &&
             'mt-2',
         ]}
       >
@@ -129,14 +139,18 @@
   </div>
 </main>
 
-<!-- Mounted anew on every page, like on the website: it records the visit of the page -->
-{#key navProps.current}
-  <StaffNav {...navProps} {module} />
-{/key}
+{#if !bare}
+  <!-- Mounted anew on every page, like on the website: it records the visit of the page -->
+  {#key navProps.current}
+    <StaffNav {...navProps} {module} />
+  {/key}
 
-<footer class="ui-footer relative z-10 mt-12 border-t border-[var(--color-neutral-200)] bg-surface">
-  <StaffFooter />
-</footer>
+  <footer
+    class="ui-footer relative z-10 mt-12 border-t border-[var(--color-neutral-200)] bg-surface"
+  >
+    <StaffFooter />
+  </footer>
+{/if}
 
 <style>
   :global(html:has(#staff-content)) {
