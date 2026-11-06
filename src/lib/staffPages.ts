@@ -5,7 +5,7 @@ import { postfachHref } from '#legacy/web/src/lib/postfaecher';
  * The pages of the Leitendenbereich that already live in this app, with what StaffLayout.astro
  * of website-astro took as props. Title, heading and intro still come from the registry of
  * website-astro (`STAFF_MODULES`, `STAFF_SUBPAGES` in lib/staffModules.ts).
- * Every other page of the Leitendenbereich opens on the website (routes/leitendenbereich/[...rest]).
+ * Only the Nikolausdienst still opens on the website (lib/staffLinks.ts).
  */
 export interface StaffPageOptions {
   /** Who renders the h1: `page` shows heading and intro, `sr-only` a heading for screen readers, `none` leaves it to the content. */
@@ -74,6 +74,7 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/qr-code': { header: 'page' },
   '/leitendenbereich/blog': { header: 'page' },
   '/leitendenbereich/blog/beitrag': { header: 'none' },
+  '/leitendenbereich/neuigkeiten': { header: 'page' },
 };
 
 export interface DetailPage {

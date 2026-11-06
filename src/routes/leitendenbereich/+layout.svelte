@@ -33,7 +33,7 @@
   const sections = STAFF_MODULE_SECTIONS.filter((section) => section.modules.length > 0);
   // A detail page with the ID in its path (abrechnung/<id>) has the entry of its registered page
   const path = $derived(staffRegistryPath(page.url.pathname));
-  // Pages not moved yet redirect to the website before they render (leitendenbereich/[...rest])
+  // The Nikolausdienst redirects to the website before it renders (leitendenbereich/[...rest])
   const options = $derived(MOVED_PAGES[path] ?? { header: 'none' as const });
   const current = $derived(MOVED_PAGES[path] ? staffPage(path) : undefined);
   const heading = $derived(current ? (current.heading ?? current.title) : 'Leitendenbereich');
