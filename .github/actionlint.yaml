@@ -1,0 +1,6 @@
+# actionlint 1.7.12 does not know `concurrency.queue` yet, which GitHub accepts (ci.yml and
+# codex-review.yml use it). Remove this once actionlint knows the key.
+paths:
+  .github/workflows/**/*.yml:
+    ignore:
+      - 'unexpected key "queue" for "concurrency" section'
