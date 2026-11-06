@@ -58,6 +58,16 @@ export function isPreviewUrl(url: URL): boolean {
   return url.protocol === 'https:' && !url.port && APP_CONFIG.hosts.preview.test(url.hostname);
 }
 
+/**
+ * The address of a `--shot` path on the preview, or `undefined` when it is not a path or leads
+ * to another origin (`//host`, `/\\host`, a tab between the slashes, a full URL).
+ */
+export function shotUrl(base: URL, path: string | undefined): URL | undefined {
+  if (!path?.startsWith('/')) return undefined;
+  const url = new URL(path, base.origin);
+  return url.origin === base.origin ? url : undefined;
+}
+
 function parseArgs(args: string[]): Options {
   let base: URL | undefined;
   let out: string | undefined;
@@ -74,7 +84,7 @@ function parseArgs(args: string[]): Options {
   if (!base) usage('The preview URL is missing.');
   if (!isPreviewUrl(base)) usage(`Not a PR preview of this app: ${base.origin}`);
   if (!Number.isInteger(width) || width < 320) usage('--width needs a number of at least 320.');
-  if (shots.some((path) => !path?.startsWith('/') || path.startsWith('//'))) {
+  if (shots.some((path) => !shotUrl(base, path))) {
     usage('--shot needs a path of the preview, e.g. /leitendenbereich/aufgaben.');
   }
   return {
@@ -286,7 +296,9 @@ async function main(): Promise<void> {
     if (options.shots.length > 0) {
       const page = await context.newPage();
       for (const path of options.shots) {
-        const response = await page.goto(new URL(path, options.base).href);
+        const url = shotUrl(options.base, path);
+        if (!url) throw new Error(`Not a path of the preview: ${path}`);
+        const response = await page.goto(url.href);
         // Some pages keep a request open, so the network never goes quiet there
         await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
         const file = shotFile(path, options.width);

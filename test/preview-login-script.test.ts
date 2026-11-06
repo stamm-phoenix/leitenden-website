@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { isPreviewUrl, totp } from '../scripts/preview-login';
+import { isPreviewUrl, shotUrl, totp } from '../scripts/preview-login';
 import { APP_CONFIG } from '../src/lib/server/config';
 
 const DOMAIN = APP_CONFIG.hosts.production.replace(/^leitenden-website\./, '');
@@ -25,4 +25,21 @@ test('the code is the one of an authenticator app', () => {
   expect(totp(secret, Math.floor(59 / 30))).toBe('287082');
   expect(totp(secret, Math.floor(1111111109 / 30))).toBe('081804');
   expect(totp(secret, Math.floor(20000000000 / 30))).toBe('353130');
+});
+
+test('screenshots only open paths of the preview', () => {
+  const base = new URL(`https://leitenden-website---pr-6.${DOMAIN}`);
+  expect(shotUrl(base, '/leitendenbereich/aufgaben?id=1')?.href).toBe(
+    `${base.origin}/leitendenbereich/aufgaben?id=1`
+  );
+  for (const path of [
+    '//example.org/',
+    '/\\example.org/',
+    '/\t/example.org/',
+    'https://example.org/',
+    'x',
+    undefined,
+  ]) {
+    expect(shotUrl(base, path)).toBeUndefined();
+  }
 });
