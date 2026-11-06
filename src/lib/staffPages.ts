@@ -1,3 +1,6 @@
+import { POSTFAECHER } from '#legacy/api/lib/postfach-liste';
+import { postfachHref } from '#legacy/web/src/lib/postfaecher';
+
 /**
  * The pages of the Leitendenbereich that already live in this app, with what StaffLayout.astro
  * of website-astro took as props. Title, heading and intro still come from the registry of
@@ -27,6 +30,13 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/abstimmungen': { header: 'none' },
   '/leitendenbereich/abstimmungen/abstimmung': { header: 'none' },
   '/leitendenbereich/personen': { header: 'page' },
+  // One page per shared mailbox (email/[postfach]), like getStaticPaths of email/[postfach].astro
+  ...Object.fromEntries(
+    POSTFAECHER.map((postfach) => [
+      postfachHref(postfach.id),
+      { header: 'page', compact: true } satisfies StaffPageOptions,
+    ])
+  ),
   '/leitendenbereich/wieder-angemeldet': { header: 'page' },
 };
 
