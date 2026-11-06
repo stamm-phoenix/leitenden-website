@@ -67,6 +67,7 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/redaktion': { header: 'page' },
   '/leitendenbereich/gruppenstunden': { header: 'none' },
   '/leitendenbereich/gruppenstunden-hinweise': { header: 'none' },
+  '/leitendenbereich/leitende': { header: 'page' },
 };
 
 export interface DetailPage {
