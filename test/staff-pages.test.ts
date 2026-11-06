@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from 'bun:test';
 import { POSTFAECHER } from '#legacy/api/lib/postfach-liste';
@@ -71,15 +71,28 @@ function schnupperMailPath(): string {
   return new URL(links[0]).pathname;
 }
 
+/** The pages the mails of api/endpoints/intern-pflege-belege.ts link to (built inline there). */
+function belegMailPaths(): string[] {
+  const source = readFileSync(
+    join(import.meta.dir, '../vendor/website-astro/api/endpoints/intern-pflege-belege.ts'),
+    'utf8'
+  );
+  const paths = [...source.matchAll(/\$\{getSiteUrl\(request\)\}(\/[^`?#]*)/g)].map((m) => m[1]);
+  expect(paths.length).toBeGreaterThan(0);
+  return paths;
+}
+
 // Links in the mails of website-astro (api/lib/leitendenrunde-termin.ts,
 // aufgaben-erinnerung-mails.ts, postfach-mails.ts, schnupper-mails.ts, foto-benachrichtigung.ts
-// via foto-pfade.ts) and links to detail pages kept from the website keep
+// via foto-pfade.ts, the mails to the Kasse and about a rejected Beleg in
+// api/endpoints/intern-pflege-belege.ts) and links to detail pages kept from the website keep
 // their path here; query and hash are read by the components
 test('the staff pages linked from mails live in this app', () => {
   for (const path of [
     '/leitendenbereich/aufgaben',
     '/leitendenbereich/protokolle',
     '/leitendenbereich/protokolle/protokoll',
+    ...belegMailPaths(),
     '/leitendenbereich/abrechnung/evt_Ab12',
     schnupperMailPath(),
     new URL(fotoOrdnerLink('Aktionen/2026'), 'https://example.org').pathname,
