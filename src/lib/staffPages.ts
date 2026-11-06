@@ -51,6 +51,8 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/essensplanungen': { header: 'page' },
   '/leitendenbereich/essensplanung-steuerung': { header: 'page' },
   '/leitendenbereich/essensplanung-zutaten': { header: 'page' },
+  '/leitendenbereich/belege': { header: 'none' },
+  '/leitendenbereich/eigenbeleg': { header: 'page' },
   '/leitendenbereich/abrechnung': { header: 'page' },
   '/leitendenbereich/abrechnung/detail': {
     header: 'none',

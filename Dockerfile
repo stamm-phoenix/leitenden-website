@@ -21,7 +21,7 @@ ENV NODE_ENV=production \
     PORT=3000 \
     # Container Apps terminates TLS; the protocol of the request comes in this header
     PROTOCOL_HEADER=x-forwarded-proto \
-    BODY_SIZE_LIMIT=30M
+    BODY_SIZE_LIMIT=40M
 WORKDIR /app
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/build ./build
