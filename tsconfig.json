@@ -10,6 +10,6 @@
       "#legacy/*": ["./vendor/website-astro/*"]
     }
   },
-  "include": ["src", "test", "vite", "*"],
+  "include": ["src", "test", "vite", "scripts/*.ts", "*"],
   "exclude": ["src/service-worker"]
 }
