@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, mock, test } from 'bun:test';
 import { fileURLToPath } from 'node:url';
 import type { InvocationContext } from '@azure/functions';
 import { requestSiteRebuildIn } from '../src/lib/server/siteRebuild';
-import { replacementOf } from '../vite/legacyCode';
+import { legacyCode, replacementOf } from '../vite/legacyCode';
 
 const file = (relative: string): string => fileURLToPath(new URL(relative, import.meta.url));
 
@@ -45,11 +45,46 @@ test('areas without public content start nothing', async () => {
   expect(calls).toEqual([]);
 });
 
-test('the API of website-astro gets the replacement', () => {
+/** The dispatches of `requestSiteRebuild` in a process with `env` (test/fixtures). */
+function dispatchesWith(env: Record<string, string>): string {
+  const run = Bun.spawnSync([process.execPath, file('fixtures/site-rebuild-run.ts')], {
+    env: { ...process.env, GITHUB_REBUILD_TOKEN: 'test-token', PREVIEW_DATABASE: '', ...env },
+  });
+  expect(run.exitCode).toBe(0);
+  return run.stdout.toString().trim();
+}
+
+// The revision of a PR preview gets its database name as environment variable (container-app.sh)
+test('the API reads from the environment whether it runs as a preview', () => {
+  expect(dispatchesWith({})).toBe('1');
+  expect(dispatchesWith({ PREVIEW_DATABASE: 'leitende-pr-13' })).toBe('0');
+});
+
+/** What the plugin resolves `source` imported by `importer` to, with Vite's resolution faked. */
+async function resolveWithPlugin(source: string, importer: string, id: string): Promise<unknown> {
+  const resolveId = legacyCode().resolveId as (
+    this: unknown,
+    source: string,
+    importer: string,
+    options: object
+  ) => Promise<unknown>;
+  const context = { resolve: async (): Promise<{ id: string }> => ({ id }) };
+  return resolveId.call(context, source, importer, {});
+}
+
+// Both places of website-astro that ask for a content build
+test('the API of website-astro gets the replacement', async () => {
+  const original = file('../vendor/website-astro/api/lib/site-rebuild.ts');
+  const replacement = file('../src/lib/server/siteRebuild.ts');
+  for (const [source, importer] of [
+    ['./site-rebuild', '../vendor/website-astro/api/lib/pflege-api.ts'],
+    ['../lib/site-rebuild', '../vendor/website-astro/api/endpoints/intern-nikolaus-steuerung.ts'],
+  ]) {
+    expect(await resolveWithPlugin(source, file(importer), original)).toBe(replacement);
+    expect(replacementOf(original, file(importer))).toBe(replacement);
+  }
+  // The replacement itself imports the original
   expect(
-    replacementOf(
-      file('../vendor/website-astro/api/lib/site-rebuild.ts'),
-      file('../vendor/website-astro/api/lib/pflege-api.ts')
-    )
-  ).toBe(file('../src/lib/server/siteRebuild.ts'));
+    await resolveWithPlugin('#legacy/api/lib/site-rebuild', replacement, original)
+  ).toBeUndefined();
 });

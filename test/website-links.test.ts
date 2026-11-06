@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from 'bun:test';
 import { getBlogPostUrl } from '../src/lib/blogLinks';
-import { replacementOf } from '../vite/legacyCode';
+import { legacyCode } from '../vite/legacyCode';
 
 const LEGACY_WEB = join(import.meta.dir, '../vendor/website-astro/web/src');
 const read = (path: string): string => readFileSync(join(LEGACY_WEB, path), 'utf8');
@@ -32,15 +32,25 @@ test('links to a published blog post point to the website', () => {
   );
 });
 
-test('the blog modules get the links of this app', () => {
+/** What the plugin resolves `source` imported by `importer` to, with Vite's resolution faked. */
+async function resolveWithPlugin(source: string, importer: string, id: string): Promise<unknown> {
+  const resolveId = legacyCode().resolveId as (
+    this: unknown,
+    source: string,
+    importer: string,
+    options: object
+  ) => Promise<unknown>;
+  const context = { resolve: async (): Promise<{ id: string }> => ({ id }) };
+  return resolveId.call(context, source, importer, {});
+}
+
+test('the blog modules get the links of this app', async () => {
   const blog = join(LEGACY_WEB, 'lib/blog.ts');
+  const links = fileURLToPath(new URL('../src/lib/blogLinks.ts', import.meta.url));
   for (const component of ['BlogPflege.svelte', 'BlogEditor.svelte']) {
-    expect(replacementOf(blog, join(LEGACY_WEB, 'components/pflege', component))).toBe(
-      fileURLToPath(new URL('../src/lib/blogLinks.ts', import.meta.url))
-    );
+    const importer = join(LEGACY_WEB, 'components/pflege', component);
+    expect(await resolveWithPlugin('../../lib/blog', importer, blog)).toBe(links);
   }
   // The replacement itself imports the original
-  expect(
-    replacementOf(blog, fileURLToPath(new URL('../src/lib/blogLinks.ts', import.meta.url)))
-  ).toBeUndefined();
+  expect(await resolveWithPlugin('#legacy/web/src/lib/blog', links, blog)).toBeUndefined();
 });
