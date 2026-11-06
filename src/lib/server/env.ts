@@ -7,9 +7,9 @@ function read(name: string): string | undefined {
 }
 
 export const env = {
-  /** Set by Azure Container Apps in every container. */
+  /** Set by Azure Container Apps in every container: of the web app, or of a job (timers). */
   get inAzure(): boolean {
-    return read('CONTAINER_APP_NAME') !== undefined;
+    return read('CONTAINER_APP_NAME') !== undefined || read('CONTAINER_APP_JOB_NAME') !== undefined;
   },
   /** Local demo mode with the mock API of website-astro (`bun run dev:mock`). */
   get mockApi(): boolean {

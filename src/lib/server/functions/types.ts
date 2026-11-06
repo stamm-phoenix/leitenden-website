@@ -86,7 +86,17 @@ export interface HttpFunctionOptions {
   route?: string;
 }
 
-/** Only a type: the timers of website-astro do not run in this app. */
+/** What the timers of website-astro read from the timer argument; a job run is never late. */
 export interface Timer {
   isPastDue: boolean;
+}
+
+export type TimerHandler = (timer: Timer, context: InvocationContext) => Promise<void> | void;
+
+export interface TimerFunctionOptions {
+  /** NCRONTAB with seconds, in UTC; the job of the timer has the same time (timer-jobs.sh). */
+  schedule: string;
+  handler: TimerHandler;
+  runOnStartup?: boolean;
+  useMonitor?: boolean;
 }

@@ -1,11 +1,11 @@
 /**
  * Stand-in for `@azure/functions`, which the API of website-astro imports (see
  * `vite/legacyCode.ts`). `app.http()` only records the routes; `router.ts` answers requests
- * with them. Timers keep running in the Function App of website-astro for now, so `app.timer()`
- * records nothing.
+ * with them. `app.timer()` records the timers; the Container Apps Jobs run them (timers.ts).
  */
-import type { HttpFunctionOptions } from './types';
+import type { HttpFunctionOptions, TimerFunctionOptions } from './types';
 import { registerRoute } from './registry';
+import { registerTimer } from './timers';
 
 export type {
   Cookie,
@@ -16,12 +16,16 @@ export type {
   HttpResponseInit,
   InvocationContext,
   Timer,
+  TimerFunctionOptions,
+  TimerHandler,
 } from './types';
 
 export const app = {
   http(name: string, options: HttpFunctionOptions): void {
     registerRoute(name, options);
   },
-  timer(): void {},
+  timer(name: string, options: TimerFunctionOptions): void {
+    registerTimer(name, options);
+  },
   setup(): void {},
 };
