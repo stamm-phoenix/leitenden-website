@@ -31,6 +31,9 @@ test('detail pages with the ID in their path get the entry of their registered p
   expect(staffRegistryPath('/leitendenbereich/abrechnung/evt_Ab12')).toBe(
     '/leitendenbereich/abrechnung/detail'
   );
+  expect(staffRegistryPath('/leitendenbereich/sammelbestellungen/12/')).toBe(
+    '/leitendenbereich/sammelbestellungen/detail'
+  );
   expect(staffRegistryPath('/leitendenbereich/abrechnung')).toBe('/leitendenbereich/abrechnung');
   expect(staffRegistryPath('/leitendenbereich/abrechnung/a/b')).toBe(
     '/leitendenbereich/abrechnung/a/b'
@@ -94,6 +97,7 @@ test('the staff pages linked from mails live in this app', () => {
     '/leitendenbereich/protokolle/protokoll',
     ...belegMailPaths(),
     '/leitendenbereich/abrechnung/evt_Ab12',
+    '/leitendenbereich/sammelbestellungen/12',
     schnupperMailPath(),
     new URL(fotoOrdnerLink('Aktionen/2026'), 'https://example.org').pathname,
     ...POSTFAECHER.map(

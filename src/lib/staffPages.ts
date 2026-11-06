@@ -61,6 +61,8 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   },
   '/leitendenbereich/beitraege': { header: 'page' },
   '/leitendenbereich/kostenstellen': { header: 'page' },
+  '/leitendenbereich/sammelbestellungen': { header: 'none' },
+  '/leitendenbereich/sammelbestellungen/detail': { header: 'none' },
 };
 
 export interface DetailPage {
@@ -77,6 +79,10 @@ export interface DetailPage {
  */
 export const DETAIL_PAGES: DetailPage[] = [
   { parent: '/leitendenbereich/abrechnung', page: '/leitendenbereich/abrechnung/detail' },
+  {
+    parent: '/leitendenbereich/sammelbestellungen',
+    page: '/leitendenbereich/sammelbestellungen/detail',
+  },
 ];
 
 /** The path without a trailing slash, as the registry of website-astro writes it. */
