@@ -3,21 +3,11 @@
  * `app.http()` registrations (shim.ts) become routes, and the Fetch request of SvelteKit is
  * handed over as the `HttpRequest` they expect.
  */
-import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
+import { createContext, useLegacyApiDir } from './context';
 import { matchRoute, registeredRoutes } from './registry';
-import type { Cookie, HttpRequest, HttpResponseInit, InvocationContext } from './types';
-
-declare global {
-  var __legacyApiDir: string | undefined;
-}
+import type { Cookie, HttpRequest, HttpResponseInit } from './types';
 
 let loading: Promise<void> | undefined;
-
-/** The API reads its assets relative to its bundle (`api/dist/bundle`, see vite/legacyCode.ts). */
-export function useLegacyApiDir(): void {
-  globalThis.__legacyApiDir ??= resolve('vendor/website-astro/api/dist/bundle');
-}
 
 /** Imports `api/main.ts` of the submodule once; its imports register every endpoint. */
 export function loadLegacyApi(): Promise<void> {
@@ -47,22 +37,6 @@ function toHttpRequest(request: Request, params: Record<string, string>): HttpRe
     json: () => request.json(),
     text: () => request.text(),
     clone: () => toHttpRequest(request.clone(), params),
-  };
-}
-
-/** The context of one call of the function `name`; it logs to the console of the container. */
-export function createContext(name: string): InvocationContext {
-  const invocationId = randomUUID();
-  const prefix = `[${name}]`;
-  return {
-    invocationId,
-    functionName: name,
-    log: (...args) => console.log(prefix, ...args),
-    trace: (...args) => console.debug(prefix, ...args),
-    debug: (...args) => console.debug(prefix, ...args),
-    info: (...args) => console.info(prefix, ...args),
-    warn: (...args) => console.warn(prefix, ...args),
-    error: (...args) => console.error(prefix, ...args),
   };
 }
 

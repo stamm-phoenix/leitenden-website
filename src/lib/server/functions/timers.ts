@@ -4,7 +4,7 @@
  * schedule trigger replaces the Functions timer, so each run happens once, however many
  * replicas the web app has, and never in a PR preview (`.github/scripts/timer-jobs.sh`).
  */
-import { createContext, useLegacyApiDir } from './router';
+import { createContext, useLegacyApiDir } from './context';
 import type { InvocationContext, TimerFunctionOptions } from './types';
 
 export interface RegisteredTimer {
