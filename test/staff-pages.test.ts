@@ -8,12 +8,14 @@ import { schnupperStammMail } from '#legacy/api/lib/schnupper-mails';
 import { SCHNUPPER_STUFEN } from '#legacy/api/lib/schnupper-model';
 import type { StaffSchnupperAnfrage } from '#legacy/api/lib/schnupper-model';
 import { staffPage } from '#legacy/web/src/lib/staffModules';
-import { MOVED_PAGES } from '../src/lib/staffPages';
+import { DETAIL_PAGES, MOVED_PAGES, staffRegistryPath } from '../src/lib/staffPages';
 
 const ROUTES = join(import.meta.dir, '../src/routes');
 
-/** The route of a page; the mailboxes share email/[postfach]. */
+/** The route of a page; the mailboxes share email/[postfach], detail pages are `[id]`. */
 function routeOf(path: string): string {
+  const detail = DETAIL_PAGES.find((entry) => entry.page === path);
+  if (detail) return `${detail.parent}/[id]`;
   return path.replace(/^\/leitendenbereich\/email\/[^/]+$/, '/leitendenbereich/email/[postfach]');
 }
 
@@ -22,6 +24,18 @@ test('every moved page has a route and an entry in the registry of website-astro
     expect(existsSync(join(ROUTES, routeOf(path), '+page.svelte'))).toBe(true);
     expect(staffPage(path).href).toBe(path);
   }
+});
+
+// The website served them with a rewrite in staticwebapp.config.json; the URLs stay the same
+test('detail pages with the ID in their path get the entry of their registered page', () => {
+  expect(staffRegistryPath('/leitendenbereich/abrechnung/evt_Ab12')).toBe(
+    '/leitendenbereich/abrechnung/detail'
+  );
+  expect(staffRegistryPath('/leitendenbereich/abrechnung')).toBe('/leitendenbereich/abrechnung');
+  expect(staffRegistryPath('/leitendenbereich/abrechnung/a/b')).toBe(
+    '/leitendenbereich/abrechnung/a/b'
+  );
+  for (const { page } of DETAIL_PAGES) expect(MOVED_PAGES[page]).toBeDefined();
 });
 
 test('every shared mailbox has its page here', () => {
@@ -59,18 +73,20 @@ function schnupperMailPath(): string {
 
 // Links in the mails of website-astro (api/lib/leitendenrunde-termin.ts,
 // aufgaben-erinnerung-mails.ts, postfach-mails.ts, schnupper-mails.ts, foto-benachrichtigung.ts
-// via foto-pfade.ts) keep their path here; query and hash are read by the components
+// via foto-pfade.ts) and links to detail pages kept from the website keep
+// their path here; query and hash are read by the components
 test('the staff pages linked from mails live in this app', () => {
   for (const path of [
     '/leitendenbereich/aufgaben',
     '/leitendenbereich/protokolle',
     '/leitendenbereich/protokolle/protokoll',
+    '/leitendenbereich/abrechnung/evt_Ab12',
     schnupperMailPath(),
     new URL(fotoOrdnerLink('Aktionen/2026'), 'https://example.org').pathname,
     ...POSTFAECHER.map(
       (postfach) => new URL(konversationLink('https://example.org', postfach.id, 'x')).pathname
     ),
   ]) {
-    expect(MOVED_PAGES[path]).toBeDefined();
+    expect(MOVED_PAGES[staffRegistryPath(path)]).toBeDefined();
   }
 });

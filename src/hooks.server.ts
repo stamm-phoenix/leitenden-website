@@ -12,7 +12,7 @@ import { principalHeader, principalOf } from '#lib/server/principal';
 import { clearSession, readSession } from '#lib/server/session';
 import { env } from '#lib/server/env';
 import { STAFF_ROLE, routeAccess } from '#lib/server/access';
-import { MOVED_PAGES, staffPath } from '#lib/staffPages';
+import { MOVED_PAGES, staffRegistryPath } from '#lib/staffPages';
 
 const PRINCIPAL_HEADER = 'x-ms-client-principal';
 
@@ -106,7 +106,7 @@ function withBareBody(resolve: Parameters<Handle>[0]['resolve']): Parameters<Han
   return (event, opts) =>
     resolve(event, {
       ...opts,
-      transformPageChunk: MOVED_PAGES[staffPath(event.url.pathname)]?.bare
+      transformPageChunk: MOVED_PAGES[staffRegistryPath(event.url.pathname)]?.bare
         ? ({ html }) => html.replace('<body class="', '<body class="is-bare ')
         : opts?.transformPageChunk,
     });
