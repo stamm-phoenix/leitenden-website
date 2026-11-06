@@ -16,10 +16,12 @@ export const LEGACY_API_BUNDLE = `${LEGACY_API}dist/bundle`;
  * Modules of the website-astro API that this app replaces: the API runs here as one Node
  * server instead of Azure Functions, signs in with the Managed Identity instead of the
  * certificate and reads the preview names from its environment instead of a rewritten file.
+ * A PR preview never starts the content refresh of the production website.
  */
 const REPLACED_MODULES: Record<string, string> = {
   [`${LEGACY_API}lib/token.ts`]: path('../src/lib/server/token.ts'),
   [`${LEGACY_API}lib/deployment.ts`]: path('../src/lib/server/deployment.ts'),
+  [`${LEGACY_API}lib/site-rebuild.ts`]: path('../src/lib/server/siteRebuild.ts'),
 };
 
 /**
@@ -49,7 +51,8 @@ export function legacyCode(): Plugin {
     name: 'legacy-code',
     enforce: 'pre',
     async resolveId(source, importer, options) {
-      if (!importer || !/(token|deployment|essensplanung)(\.ts)?$/.test(source)) return;
+      if (!importer || !/(token|deployment|site-rebuild|essensplanung)(\.ts)?$/.test(source))
+        return;
       if (!importer.startsWith(LEGACY_API) && !importer.startsWith(LEGACY_WEB)) return;
       const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
       return resolved ? replacementOf(resolved.id, importer) : undefined;
