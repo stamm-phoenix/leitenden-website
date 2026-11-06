@@ -11,7 +11,7 @@ bun run dev:mock                # Dev server with the demo API and login of webs
 bun run dev                     # Dev server against Azure (needs SESSION_SECRET, see „Login“)
 bun run check                   # svelte-check of this app (the submodule is checked by website-astro)
 bun test                        # Unit tests in test/
-bun run build                   # Production build (adapter-node, output in build/)
+bun run build                   # Production build (adapter-node in build/, timer jobs in build/jobs/)
 ```
 
 ## How this app is built
@@ -19,6 +19,7 @@ bun run build                   # Production build (adapter-node, output in buil
 ```
 src/
 ├── hooks.server.ts         # Every request: login addresses, page protection, /api via the adapter
+├── jobs/timer.ts           # Entry of the timer jobs: node build/jobs/timer.js <timer>
 ├── lib/server/
 │   ├── functions/          # Adapter: the Azure Functions endpoints of website-astro, unchanged
 │   ├── login.ts            # Entra login (MSAL) under the SWA addresses /.auth/login/aad, /.auth/me, /.auth/logout
@@ -48,7 +49,7 @@ scripts/preview-db.ts       # Database and blob container of a PR preview
 - `/api/*` is served by the endpoints of website-astro through `src/lib/server/functions/`: `app.http()` registrations become routes (Functions route templates incl. `{id:int?}` and `{stufe}.ics`), the Fetch request becomes their `HttpRequest`. Do not add endpoints here; add them in website-astro.
 - `hooks.server.ts` removes any `x-ms-client-principal` the browser sends and sets the one of the login. Never trust a principal from the request.
 - Access as in `staticwebapp.config.json`: `/leitendenbereich/*` and `/api/intern/*` need the role `team_leitende` (`src/lib/server/access.ts`). Other `/api/*` answer only GET; the public functions (Nikolaus booking, contact, polls, meal planning for guests, group orders) stay on the website.
-- Timers stay in the Function App of website-astro for now; `app.timer()` registers nothing here.
+- Timers (`api/timers/` of website-astro) run as Container Apps Jobs, one per timer, never in the web server: `app.timer()` records them (`functions/timers.ts`), and each job runs `node build/jobs/timer.js <timer>` from the image of `main` on the timer's schedule (cron in UTC, NCRONTAB without the seconds; `test/timer-jobs.test.ts` compares them). A job execution is one container, so each run happens exactly once however many replicas the app has, and previews never run them. The entry is built by `vite.jobs.config.ts` with the same module replacements as the server. Do not add `runOnStartup` or retries: a run that failed half way must not send its mails twice.
 
 ### Login
 
@@ -65,7 +66,8 @@ The website's API code reads its own secrets and switches (`vendor/website-astro
 
 - From the vault (secret name = variable in kebab case, e.g. `playwright-api-key`): `PLAYWRIGHT_API_KEY`, `CAMPFLOW_API_TOKEN`, `AZURE_OPENAI_API_KEY`, `GITHUB_REBUILD_TOKEN`, `NAMI_USERNAME`, `NAMI_PASSWORD`, `NIKOLAUS_STATE_SECRET`, `SAMMELBESTELLUNG_LINK_SECRET`. The values were copied from the Static Web App's settings; the website does not reference the vault yet, so a changed value must be set in both places until it does.
 - Plain value: `SAMMELBESTELLUNG_CAMPFLOW_CREATE_ENABLED` (as in the Static Web App). `SESSION_SECRET` is a plain Container App secret of this app only.
-- Not set: `AZURE_CLIENT_CERT` (Managed Identity instead), `KONTAKT_ALTCHA_SECRET` and `INSTAGRAM_ACCESS_TOKEN` (public website only), `GITHUB_ISSUES_TOKEN` and `AZURE_MAPS_API_KEY` (not set on the website either), the timer switches `TASK_REMINDERS_ENABLED`, `LEITENDENRUNDE_REMINDERS_ENABLED` and `ESSENSPLANUNG_AUFBEWAHRUNG_ENABLED` (they come with the timers, #4).
+- Not set: `AZURE_CLIENT_CERT` (Managed Identity instead), `KONTAKT_ALTCHA_SECRET` and `INSTAGRAM_ACCESS_TOKEN` (public website only), `GITHUB_ISSUES_TOKEN` and `AZURE_MAPS_API_KEY` (not set on the website either), the timer switches (see below).
+- Timer jobs: they get the same Key Vault references and variables as the app (without `SESSION_SECRET` and the preview names), copied by `.github/scripts/timer-jobs.sh setup <image>`; run it again after adding a secret to the app. Each job has only its own switch as a plain variable, `TASK_REMINDERS_ENABLED`, `LEITENDENRUNDE_REMINDERS_ENABLED` or `ESSENSPLANUNG_AUFBEWAHRUNG_ENABLED`; only `"true"` runs the timer. Switch with `az containerapp job update -g website-astro -n <job> --set-env-vars <SWITCH>=true`; it applies from the next execution. The switches of the Function App `website-astro-task-reminders` must be `"false"` while a job's is on, or mails go out twice.
 - Secrets belong to the app and the variables are copied into every new revision, so PR previews get the same values as `main`, including the real CampFlow and NaMi accounts, like the website's previews. `az containerapp update` in the deploy script keeps them; set new ones once with `az containerapp secret set` and `--set-env-vars NAME=secretref:<secret>`.
 
 ## Hosting and previews
@@ -73,7 +75,8 @@ The website's API code reads its own secrets and switches (`vendor/website-astro
 - Azure Container Apps `leitenden-website` in the environment `website-astro-env` (Germany West Central, next to the database), image in `websiteastroacr`. Multiple revision mode: `main` gets all traffic, each PR a revision behind the label `pr-<number>` without traffic (`.github/scripts/container-app.sh`). The `main` revision always keeps one replica running (a start from zero takes about 20 s); previews scale to zero.
 - Each PR preview has its own database and blob container `leitende-pr-<number>` on the preview server and in the preview storage account, created, migrated and seeded with invented data by `scripts/preview-db.ts`, dropped when the PR closes. A production revision must never get `PREVIEW_DATABASE` or `PREVIEW_CONTAINER`; the deploy script checks it.
 - Database migrations belong to website-astro and run in its deploy job. This app never changes the production schema.
-- The deploy identity is `leitenden-website-deploy` (GitHub OIDC for `main` and pull requests). Repository variables hold the IDs; there are no repository secrets.
+- Timer jobs `leitenden-timer-aufgaben` (`taskReminders`, minute 17 of every hour), `leitenden-timer-leitendenrunde` (`leitendenrundeReminders`, minute 47) and `leitenden-timer-essensplanung` (`essensplanungAufbewahrung`, 03:23 UTC) in the same environment, with the runtime identity, no retries and a timeout of 30 minutes. The `main` deployment gives them the new image after the traffic switch (`timer-jobs.sh image`); previews never touch them. Logs: table `ContainerAppConsoleLogs_CL` with `ContainerJobName_s`; a manual run is `az containerapp job start -g website-astro -n <job>`, and `--args build/jobs/timer.js --check-identity` with `--command node` only checks the sign-in to Azure SQL and Graph. Never start a job by hand while its switch is on: it sends real mails.
+- The deploy identity is `leitenden-website-deploy` (GitHub OIDC for `main` and pull requests), Contributor on the Container App and the timer jobs. Repository variables hold the IDs; there are no repository secrets.
 
 ## Code Style
 

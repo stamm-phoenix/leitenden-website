@@ -7,7 +7,8 @@
 #
 # Needs RESOURCE_GROUP, CONTAINER_APP and, for remove-preview, ACR_NAME in the environment.
 # A preview revision gets PREVIEW_DATABASE and PREVIEW_CONTAINER (src/lib/server/deployment.ts);
-# a production revision must never have them.
+# a production revision must never have them. The main deployment also gives the timer jobs the
+# new image (timer-jobs.sh); previews never touch them.
 set -euo pipefail
 
 rg="$RESOURCE_GROUP"
@@ -63,6 +64,9 @@ deploy_main() {
       az containerapp revision deactivate -g "$rg" -n "$app" --revision "$old" --only-show-errors -o none
     fi
   done
+
+  # The timers run the code of production from their next execution on
+  "$(dirname "$0")/timer-jobs.sh" image "$image"
 }
 
 deploy_preview() {

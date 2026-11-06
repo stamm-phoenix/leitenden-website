@@ -5,12 +5,12 @@
   "scripts": {
     "dev": "vite dev",
     "dev:mock": "MOCK_API=1 vite dev",
-    "build": "vite build",
+    "build": "vite build && vite build --config vite.jobs.config.ts",
     "start": "node build/index.js",
     "check": "svelte-kit sync && node scripts/check.mjs",
     "test": "bun test",
-    "format": "prettier --write src test scripts vite vite.config.ts",
-    "format:check": "prettier --check src test scripts vite vite.config.ts"
+    "format": "prettier --write src test scripts vite vite.config.ts vite.jobs.config.ts",
+    "format:check": "prettier --check src test scripts vite vite.config.ts vite.jobs.config.ts"
   },
   "dependencies": {
     "@azure/functions": "4.17.0",

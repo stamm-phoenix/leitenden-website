@@ -6,7 +6,6 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { matchRoute, registeredRoutes } from './registry';
-import type { Route } from './registry';
 import type { Cookie, HttpRequest, HttpResponseInit, InvocationContext } from './types';
 
 declare global {
@@ -15,10 +14,14 @@ declare global {
 
 let loading: Promise<void> | undefined;
 
+/** The API reads its assets relative to its bundle (`api/dist/bundle`, see vite/legacyCode.ts). */
+export function useLegacyApiDir(): void {
+  globalThis.__legacyApiDir ??= resolve('vendor/website-astro/api/dist/bundle');
+}
+
 /** Imports `api/main.ts` of the submodule once; its imports register every endpoint. */
 export function loadLegacyApi(): Promise<void> {
-  // The API reads its assets relative to its bundle (`api/dist/bundle`, see vite/legacyCode.ts)
-  globalThis.__legacyApiDir ??= resolve('vendor/website-astro/api/dist/bundle');
+  useLegacyApiDir();
   loading ??= import('#legacy/api/main').then(() => undefined);
   return loading;
 }
@@ -47,12 +50,13 @@ function toHttpRequest(request: Request, params: Record<string, string>): HttpRe
   };
 }
 
-function createContext(route: Route): InvocationContext {
+/** The context of one call of the function `name`; it logs to the console of the container. */
+export function createContext(name: string): InvocationContext {
   const invocationId = randomUUID();
-  const prefix = `[${route.name}]`;
+  const prefix = `[${name}]`;
   return {
     invocationId,
-    functionName: route.name,
+    functionName: name,
     log: (...args) => console.log(prefix, ...args),
     trace: (...args) => console.debug(prefix, ...args),
     debug: (...args) => console.debug(prefix, ...args),
@@ -122,7 +126,7 @@ export async function handleApiRequest(request: Request): Promise<Response> {
     if (!route.methods.has(request.method)) continue;
     const params = matchRoute(route, path);
     if (!params) continue;
-    const context = createContext(route);
+    const context = createContext(route.name);
     try {
       return toResponse(await route.handler(toHttpRequest(request, params), context));
     } catch (error: unknown) {
