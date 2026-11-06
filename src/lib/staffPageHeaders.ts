@@ -1,5 +1,6 @@
 import type { Component } from 'svelte';
 import AktionenKalender from '#lib/components/AktionenKalender.svelte';
+import FragenWebsiteLink from '#lib/components/FragenWebsiteLink.svelte';
 
 /**
  * What a page of website-astro put into the slot „header“ of StaffLayout.astro: shown by the
@@ -7,4 +8,5 @@ import AktionenKalender from '#lib/components/AktionenKalender.svelte';
  */
 export const PAGE_HEADER_CONTENT: Record<string, Component> = {
   '/leitendenbereich/aktionen': AktionenKalender,
+  '/leitendenbereich/fragen-und-antworten': FragenWebsiteLink,
 };
