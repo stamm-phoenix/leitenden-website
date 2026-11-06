@@ -72,6 +72,8 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/problemmeldungen': { header: 'page' },
   '/leitendenbereich/fragen-und-antworten': { header: 'page' },
   '/leitendenbereich/qr-code': { header: 'page' },
+  '/leitendenbereich/blog': { header: 'page' },
+  '/leitendenbereich/blog/beitrag': { header: 'none' },
 };
 
 export interface DetailPage {

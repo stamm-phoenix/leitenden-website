@@ -26,10 +26,12 @@ const REPLACED_MODULES: Record<string, string> = {
 
 /**
  * Modules of the website-astro frontend that this app replaces for the components of the
- * submodule: the links to the Essensplanung for guests point to the website, not to this app.
+ * submodule: the links to the Essensplanung for guests and to published blog posts point to the
+ * website, not to this app.
  */
 const REPLACED_WEB_MODULES: Record<string, string> = {
   [`${LEGACY_WEB}src/lib/essensplanung.ts`]: path('../src/lib/essensplanungLinks.ts'),
+  [`${LEGACY_WEB}src/lib/blog.ts`]: path('../src/lib/blogLinks.ts'),
 };
 
 /**
@@ -51,7 +53,7 @@ export function legacyCode(): Plugin {
     name: 'legacy-code',
     enforce: 'pre',
     async resolveId(source, importer, options) {
-      if (!importer || !/(token|deployment|site-rebuild|essensplanung)(\.ts)?$/.test(source))
+      if (!importer || !/(token|deployment|site-rebuild|essensplanung|blog)(\.ts)?$/.test(source))
         return;
       if (!importer.startsWith(LEGACY_API) && !importer.startsWith(LEGACY_WEB)) return;
       const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
