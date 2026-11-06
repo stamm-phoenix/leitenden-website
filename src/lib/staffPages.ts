@@ -60,6 +60,7 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
       'Deine Eingaben bleiben auf dieser offenen Seite stehen. Neue Daten laden erst wieder, wenn du online bist.',
   },
   '/leitendenbereich/beitraege': { header: 'page' },
+  '/leitendenbereich/kostenstellen': { header: 'page' },
 };
 
 export interface DetailPage {
