@@ -11,6 +11,7 @@ import type { Cookies } from '@sveltejs/kit';
 import { z } from 'zod';
 import { APP_CONFIG } from './config';
 import { env } from './env';
+import { mayLogInHere } from './previewLogin';
 import { seal, unseal } from './sealed';
 import { writeSession } from './session';
 import { getClientAssertion } from './token';
@@ -165,6 +166,11 @@ export async function finishLogin(url: URL, cookies: Cookies): Promise<never> {
   const login = claim(claims, 'preferred_username') ?? claim(claims, 'email');
   if (claims.nonce !== pending.data.nonce || !oid || !login || tid !== APP_CONFIG.azure.tenantId) {
     console.error('[anmeldung] Anmeldung abgelehnt', { oid, tid, hasLogin: Boolean(login) });
+    failed(returnTo);
+  }
+  // The test account of PR previews never gets a session elsewhere (previewLogin.ts)
+  if (!mayLogInHere(login)) {
+    console.error('[anmeldung] Testkonto außerhalb einer Vorschau abgelehnt', { oid });
     failed(returnTo);
   }
   writeSession(

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { Cookies } from '@sveltejs/kit';
 import { APP_CONFIG } from './config';
 import { env } from './env';
+import { mayLogInHere } from './previewLogin';
 import { seal, unseal } from './sealed';
 
 const sessionSchema = z.object({
@@ -29,7 +30,10 @@ function cookieOptions(secure: boolean, maxAge: number) {
 export function readSession(cookies: Cookies): Session | undefined {
   const value = unseal(cookies.get(APP_CONFIG.session.cookie), env.sessionSecret, PURPOSE);
   const parsed = sessionSchema.safeParse(value);
-  return parsed.success ? parsed.data : undefined;
+  if (!parsed.success) return undefined;
+  // Previews share SESSION_SECRET with production: a copied cookie of the test account stays
+  // without effect there
+  return mayLogInHere(parsed.data.login) ? parsed.data : undefined;
 }
 
 export function writeSession(cookies: Cookies, session: Session, secure: boolean): void {
