@@ -37,6 +37,7 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
       { header: 'page', compact: true } satisfies StaffPageOptions,
     ])
   ),
+  '/leitendenbereich/anwesenheit': { header: 'page' },
   '/leitendenbereich/wieder-angemeldet': { header: 'page' },
 };
 
