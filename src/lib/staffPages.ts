@@ -59,6 +59,7 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
     offlineText:
       'Deine Eingaben bleiben auf dieser offenen Seite stehen. Neue Daten laden erst wieder, wenn du online bist.',
   },
+  '/leitendenbereich/beitraege': { header: 'page' },
 };
 
 export interface DetailPage {
