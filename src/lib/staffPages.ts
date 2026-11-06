@@ -46,6 +46,9 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/aktionen/fahrten': { header: 'none' },
   '/leitendenbereich/fotos': { header: 'page', compact: true },
   '/leitendenbereich/wieder-angemeldet': { header: 'page' },
+  '/leitendenbereich/essensplanungen': { header: 'page' },
+  '/leitendenbereich/essensplanung-steuerung': { header: 'page' },
+  '/leitendenbereich/essensplanung-zutaten': { header: 'page' },
 };
 
 /** The path without a trailing slash, as the registry of website-astro writes it. */
