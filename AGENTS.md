@@ -61,6 +61,13 @@ scripts/preview-db.ts       # Database and blob container of a PR preview
 
 Non-secret values (IDs, hosts, lifetimes) live in `APP_CONFIG` in `src/lib/server/config.ts`; the configuration shared with the website stays in `CONFIG` of `vendor/website-astro/api/lib/config.ts`. Only secrets and switches are read from the environment, in `src/lib/server/env.ts`. Never add an environment override for a configuration value.
 
+The website's API code reads its own secrets and switches (`vendor/website-astro/api/lib/environment.ts`). In the Container App they are environment variables with `secretref:` to app-level secrets; each secret is a Key Vault reference to the RBAC vault `stamm-phoenix-secrets` (resource group `website-astro`), read by the runtime identity (role „Key Vault Secrets User“). Change a value only in the vault; a new revision or `az containerapp revision restart` picks it up.
+
+- From the vault (secret name = variable in kebab case, e.g. `playwright-api-key`): `PLAYWRIGHT_API_KEY`, `CAMPFLOW_API_TOKEN`, `AZURE_OPENAI_API_KEY`, `GITHUB_REBUILD_TOKEN`, `NAMI_USERNAME`, `NAMI_PASSWORD`, `NIKOLAUS_STATE_SECRET`, `SAMMELBESTELLUNG_LINK_SECRET`. The values were copied from the Static Web App's settings; the website does not reference the vault yet, so a changed value must be set in both places until it does.
+- Plain value: `SAMMELBESTELLUNG_CAMPFLOW_CREATE_ENABLED` (as in the Static Web App). `SESSION_SECRET` is a plain Container App secret of this app only.
+- Not set: `AZURE_CLIENT_CERT` (Managed Identity instead), `KONTAKT_ALTCHA_SECRET` and `INSTAGRAM_ACCESS_TOKEN` (public website only), `GITHUB_ISSUES_TOKEN` and `AZURE_MAPS_API_KEY` (not set on the website either), the timer switches `TASK_REMINDERS_ENABLED`, `LEITENDENRUNDE_REMINDERS_ENABLED` and `ESSENSPLANUNG_AUFBEWAHRUNG_ENABLED` (they come with the timers, #4).
+- Secrets belong to the app and the variables are copied into every new revision, so PR previews get the same values as `main`, including the real CampFlow and NaMi accounts, like the website's previews. `az containerapp update` in the deploy script keeps them; set new ones once with `az containerapp secret set` and `--set-env-vars NAME=secretref:<secret>`.
+
 ## Hosting and previews
 
 - Azure Container Apps `leitenden-website` in the environment `website-astro-env` (Germany West Central, next to the database), image in `websiteastroacr`. Multiple revision mode: `main` gets all traffic, each PR a revision behind the label `pr-<number>` without traffic (`.github/scripts/container-app.sh`). The `main` revision always keeps one replica running (a start from zero takes about 20 s); previews scale to zero.
