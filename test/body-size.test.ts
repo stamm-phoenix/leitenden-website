@@ -6,6 +6,9 @@ import {
   MAX_BELEG_PDF_BYTES,
   MAX_BELEG_PHOTO_BYTES,
 } from '#legacy/api/lib/validation/beleg';
+import { MAX_BLOG_IMAGE_BYTES } from '#legacy/api/lib/validation/blog';
+import { MAX_PHOTO_BYTES } from '#legacy/api/lib/validation/constants';
+import { UPLOAD_PART_BYTES } from '#legacy/api/lib/validation/downloads';
 
 /** BODY_SIZE_LIMIT of adapter-node as set in the Dockerfile, in bytes (`30M` = 30 MiB). */
 function bodySizeLimit(): number {
@@ -29,4 +32,20 @@ test('the largest Beleg the API accepts fits into a request', () => {
   // The other fields of the form (shop, note, Aktion, …) and the JSON around it
   const fields = 64 * 1024;
   expect(pdfBeleg + fields).toBeLessThanOrEqual(bodySizeLimit());
+});
+
+// Downloads go up in raw parts, the preview of the finished file as base64 in JSON
+// (api/lib/validation/downloads.ts); blog images and photos of Leitende as raw bytes
+// (api/endpoints/intern-pflege-blog.ts, intern-pflege-leitende.ts). Files up to 250 MB fit
+// because only one part travels per request.
+test('every upload of the Pflege modules fits into a request', () => {
+  const fields = 64 * 1024;
+  for (const bytes of [
+    UPLOAD_PART_BYTES,
+    base64(MAX_PHOTO_BYTES) + fields,
+    MAX_BLOG_IMAGE_BYTES,
+    MAX_PHOTO_BYTES,
+  ]) {
+    expect(bytes).toBeLessThanOrEqual(bodySizeLimit());
+  }
 });
