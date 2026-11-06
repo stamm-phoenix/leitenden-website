@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from 'bun:test';
 import { POSTFAECHER } from '#legacy/api/lib/postfach-liste';
+import { fotoOrdnerLink } from '#legacy/api/lib/foto-pfade';
 import { konversationLink } from '#legacy/api/lib/postfach-mails';
 import { schnupperStammMail } from '#legacy/api/lib/schnupper-mails';
 import { SCHNUPPER_STUFEN } from '#legacy/api/lib/schnupper-model';
@@ -57,14 +58,15 @@ function schnupperMailPath(): string {
 }
 
 // Links in the mails of website-astro (api/lib/leitendenrunde-termin.ts,
-// aufgaben-erinnerung-mails.ts, postfach-mails.ts, schnupper-mails.ts) keep their path here; query
-// and hash are read by the components
+// aufgaben-erinnerung-mails.ts, postfach-mails.ts, schnupper-mails.ts, foto-benachrichtigung.ts
+// via foto-pfade.ts) keep their path here; query and hash are read by the components
 test('the staff pages linked from mails live in this app', () => {
   for (const path of [
     '/leitendenbereich/aufgaben',
     '/leitendenbereich/protokolle',
     '/leitendenbereich/protokolle/protokoll',
     schnupperMailPath(),
+    new URL(fotoOrdnerLink('Aktionen/2026'), 'https://example.org').pathname,
     ...POSTFAECHER.map(
       (postfach) => new URL(konversationLink('https://example.org', postfach.id, 'x')).pathname
     ),

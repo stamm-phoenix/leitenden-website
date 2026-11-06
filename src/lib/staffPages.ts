@@ -44,6 +44,7 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/aktionen': { header: 'page' },
   '/leitendenbereich/aktionen/aktion': { header: 'none' },
   '/leitendenbereich/aktionen/fahrten': { header: 'none' },
+  '/leitendenbereich/fotos': { header: 'page', compact: true },
   '/leitendenbereich/wieder-angemeldet': { header: 'page' },
 };
 
