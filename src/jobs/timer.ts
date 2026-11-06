@@ -3,8 +3,11 @@
  * (`.github/scripts/timer-jobs.sh`), built to `build/jobs/timer.js` by `vite.jobs.config.ts`:
  *
  *   node build/jobs/timer.js <timer>           runs one timer, e.g. taskReminders
- *   node build/jobs/timer.js check-identity  only signs in to Azure SQL and Graph, sends nothing
+ *   node build/jobs/timer.js check-identity  only signs in to Azure SQL and Graph and reads
+ *                                             `SELECT 1` from the database; sends nothing
  */
+import { sql } from 'kysely';
+import { closeDatabase, getDb } from '#legacy/api/lib/db';
 import { env } from '#lib/server/env';
 import { loadLegacyTimers, runTimer } from '#lib/server/functions/timers';
 import { getCredential } from '#lib/server/token';
@@ -21,6 +24,15 @@ async function checkIdentity(): Promise<number> {
       console.error(`[timer] token for ${scope} failed:`, error instanceof Error ? error.name : '');
       return 1;
     }
+  }
+  try {
+    await sql`SELECT 1 AS ok`.execute(getDb());
+    console.info('[timer] database: ok');
+  } catch (error) {
+    console.error('[timer] database failed:', error instanceof Error ? error.name : '');
+    return 1;
+  } finally {
+    await closeDatabase();
   }
   return 0;
 }
