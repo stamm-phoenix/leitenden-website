@@ -24,6 +24,8 @@ export const MOVED_PAGES: Record<string, StaffPageOptions> = {
   '/leitendenbereich/protokolle': { header: 'page' },
   '/leitendenbereich/protokolle/protokoll': { header: 'sr-only', offlineNotice: false },
   '/leitendenbereich/protokolle/praesentation': { header: 'sr-only', bare: true },
+  '/leitendenbereich/abstimmungen': { header: 'none' },
+  '/leitendenbereich/abstimmungen/abstimmung': { header: 'none' },
   '/leitendenbereich/wieder-angemeldet': { header: 'page' },
 };
 
