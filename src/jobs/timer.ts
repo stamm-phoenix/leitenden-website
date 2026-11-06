@@ -3,7 +3,7 @@
  * (`.github/scripts/timer-jobs.sh`), built to `build/jobs/timer.js` by `vite.jobs.config.ts`:
  *
  *   node build/jobs/timer.js <timer>           runs one timer, e.g. taskReminders
- *   node build/jobs/timer.js --check-identity  only signs in to Azure SQL and Graph, sends nothing
+ *   node build/jobs/timer.js check-identity  only signs in to Azure SQL and Graph, sends nothing
  */
 import { env } from '#lib/server/env';
 import { loadLegacyTimers, runTimer } from '#lib/server/functions/timers';
@@ -26,7 +26,7 @@ async function checkIdentity(): Promise<number> {
 }
 
 async function main(args: string[]): Promise<number> {
-  if (args[0] === '--check-identity') return checkIdentity();
+  if (args[0] === 'check-identity') return checkIdentity();
   await loadLegacyTimers();
   return runTimer(args[0]);
 }
