@@ -6,7 +6,8 @@
  *
  *   bun scripts/preview-login.ts <preview URL> [--out <file>] [--shot <path>]... [--width <px>]
  *
- * Reads the login, password and TOTP secret from `PREVIEW_TEST_LOGIN`, `PREVIEW_TEST_PASSWORD`
+ * Uses the Chromium of `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when set. Reads the login, password
+ * and TOTP secret from `PREVIEW_TEST_LOGIN`, `PREVIEW_TEST_PASSWORD`
  * and `PREVIEW_TEST_TOTP_SECRET`. The session goes to `--out` (default
  * `test-results/preview-auth/<host>.json`, ignored by git) and is reused while it is valid; load
  * it as `storageState` in Playwright. Each `--shot` path is saved as a full-page screenshot in
@@ -249,7 +250,9 @@ function shotFile(path: string, width: number): string {
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
-  const browser = await chromium.launch();
+  // A browser of its own where Playwright's download is not available (docs/preview-testkonto.md)
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  const browser = await chromium.launch(executablePath ? { executablePath } : {});
   try {
     const contextOptions = {
       locale: 'en-US',
