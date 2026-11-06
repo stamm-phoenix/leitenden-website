@@ -63,7 +63,7 @@ Non-secret values (IDs, hosts, lifetimes) live in `APP_CONFIG` in `src/lib/serve
 
 ## Hosting and previews
 
-- Azure Container Apps `leitenden-website` in the environment `website-astro-env` (Germany West Central, next to the database), image in `websiteastroacr`. Multiple revision mode: `main` gets all traffic, each PR a revision behind the label `pr-<number>` without traffic (`.github/scripts/container-app.sh`).
+- Azure Container Apps `leitenden-website` in the environment `website-astro-env` (Germany West Central, next to the database), image in `websiteastroacr`. Multiple revision mode: `main` gets all traffic, each PR a revision behind the label `pr-<number>` without traffic (`.github/scripts/container-app.sh`). The `main` revision always keeps one replica running (a start from zero takes about 20 s); previews scale to zero.
 - Each PR preview has its own database and blob container `leitende-pr-<number>` on the preview server and in the preview storage account, created, migrated and seeded with invented data by `scripts/preview-db.ts`, dropped when the PR closes. A production revision must never get `PREVIEW_DATABASE` or `PREVIEW_CONTAINER`; the deploy script checks it.
 - Database migrations belong to website-astro and run in its deploy job. This app never changes the production schema.
 - The deploy identity is `leitenden-website-deploy` (GitHub OIDC for `main` and pull requests). Repository variables hold the IDs; there are no repository secrets.

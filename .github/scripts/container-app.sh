@@ -30,10 +30,17 @@ revision_env() {
 }
 
 deploy_main() {
-  local image="$1" suffix="$2" revision="$app--$2" used weight var
-  # The template carries the variables of the last deployed revision, which may be a preview
+  local image="$1" suffix="$2" revision="$app--$2" used weight var min
+  # The template carries the variables and scale of the last deployed revision, which may be a
+  # preview. Production always keeps one replica running: a start from zero takes about 20 s.
   az containerapp update -g "$rg" -n "$app" --image "$image" --revision-suffix "$suffix" \
-    --remove-env-vars "${PREVIEW_VARS[@]}" --only-show-errors -o none
+    --remove-env-vars "${PREVIEW_VARS[@]}" --min-replicas 1 --only-show-errors -o none
+  min="$(az containerapp revision show -g "$rg" -n "$app" --revision "$revision" \
+    --query "properties.template.scale.minReplicas" -o tsv)"
+  if [ "$min" != "1" ]; then
+    echo "::error::Production revision $revision has minReplicas $min instead of 1"
+    exit 1
+  fi
   for var in "${PREVIEW_VARS[@]}"; do
     if revision_env "$revision" | grep -qxF "$var"; then
       echo "::error::Production revision $revision has $var; it would use a preview database"
@@ -60,9 +67,10 @@ deploy_main() {
 
 deploy_preview() {
   local pr="$1" image="$2" suffix="$3" revision="$app--$3" label="pr-$1" fqdn
+  # Previews scale to zero when nobody uses them
   az containerapp update -g "$rg" -n "$app" --image "$image" --revision-suffix "$suffix" \
     --set-env-vars "PREVIEW_DATABASE=leitende-pr-$pr" "PREVIEW_CONTAINER=leitende-pr-$pr" \
-    --only-show-errors -o none
+    --min-replicas 0 --only-show-errors -o none
   az containerapp revision label add -g "$rg" -n "$app" --label "$label" --revision "$revision" \
     --no-prompt --yes --only-show-errors -o none
 
