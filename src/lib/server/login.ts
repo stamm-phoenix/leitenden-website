@@ -44,15 +44,27 @@ function getClient(): ConfidentialClientApplication {
   return client;
 }
 
-/** Only paths of this app, never another host (`//evil`, `/\evil`). */
+/** Stands in for the origin of this app while a return path is resolved. */
+const RETURN_BASE = 'https://leitenden-website.invalid';
+
+/**
+ * Only paths of this app, never another host. The path is resolved as the browser resolves the
+ * `Location` header: it drops tabs and line breaks and reads `\` as `/`, so `/<tab>/evil` would
+ * leave the app like `//evil` and `/\evil`. Returns the normalized path.
+ */
 export function safeReturnPath(
   value: string | null | undefined,
   fallback = DEFAULT_RETURN
 ): string {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) {
+  if (!value?.startsWith('/')) return fallback;
+  let resolved: URL;
+  try {
+    resolved = new URL(value, RETURN_BASE);
+  } catch {
     return fallback;
   }
-  return value;
+  if (resolved.origin !== RETURN_BASE) return fallback;
+  return `${resolved.pathname}${resolved.search}${resolved.hash}`;
 }
 
 /** The hosts whose login callback is registered in the app registration. */
