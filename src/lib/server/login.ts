@@ -64,7 +64,11 @@ export function safeReturnPath(
     return fallback;
   }
   if (resolved.origin !== RETURN_BASE) return fallback;
-  return `${resolved.pathname}${resolved.search}${resolved.hash}`;
+  const path = `${resolved.pathname}${resolved.search}${resolved.hash}`;
+  // Dot segments collapse while resolving (`/.//evil` → `//evil`), so the result is checked too
+  return path.startsWith('//') || new URL(path, RETURN_BASE).origin !== RETURN_BASE
+    ? fallback
+    : path;
 }
 
 /** The hosts whose login callback is registered in the app registration. */

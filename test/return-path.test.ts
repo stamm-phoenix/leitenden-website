@@ -22,6 +22,11 @@ test('characters the browser drops or rewrites do not lead to another host', () 
     '/\t\\evil.example',
     '\t//evil.example',
     '/\\/evil.example',
+    '/.//evil.example',
+    '/..//evil.example',
+    '/a/..//evil.example',
+    '/%2e//evil.example',
+    '/.\\/evil.example',
   ]) {
     expect(safeReturnPath(value, '/abgemeldet')).toBe('/abgemeldet');
   }
